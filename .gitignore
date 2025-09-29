@@ -1,3 +1,8 @@
+# ignore raw and processed data
+data/raw/*
+data/processed/*
+data/analytics/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
