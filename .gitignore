@@ -3,10 +3,22 @@ data/raw/*
 data/processed/*
 data/analytics/*
 
+# ignore virtual environments
+venv/
+env/
+.recsys/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
 *$py.class
+
+# local environment
+.env
+venv/
+__pycache__/
+*.pyc
+.DS_Store
 
 # C extensions
 *.so
