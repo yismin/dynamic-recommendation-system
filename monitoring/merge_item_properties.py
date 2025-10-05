@@ -19,4 +19,3 @@ merged = pd.concat([part1, part2], ignore_index=True)
 merged.to_csv("data/processed/item_properties.csv", index=False)
 
 print("✅ Merged successfully! New file saved at data/processed/item_properties.csv")
-print(m)
