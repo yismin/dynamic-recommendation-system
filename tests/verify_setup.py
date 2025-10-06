@@ -50,12 +50,7 @@ def verify_setup():
         table_indexes = indexes[indexes['tablename'] == table]
         print(f"  {table}: {len(table_indexes)} indexes")
     
-    # Check if ready for data
     print("\n✅ Database is ready for ETL pipeline!")
-    print("\nNext steps:")
-    print("  1. Prepare your RetailRocket CSV files")
-    print("  2. Run ETL pipeline to load data")
-    print("  3. Generate features")
     
     conn.close()
 
