@@ -1,13 +1,10 @@
 import psycopg2
-from psycopg2 import sql
 import sys
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Database configuration
 DB_CONFIG = {
     'dbname': os.getenv('DB_NAME'),
     'user': os.getenv('DB_USER'),
@@ -24,14 +21,14 @@ def create_schema():
         
         print("Creating tables...")
 
-        # 1. Events table (2.76M rows)
+        # 1. Events table - FIXED: visitorid is now BIGINT
         print("Creating events table...")
         cursor.execute("""
             DROP TABLE IF EXISTS events CASCADE;
             
             CREATE TABLE events (
                 timestamp BIGINT NOT NULL,
-                visitorid INTEGER NOT NULL,
+                visitorid BIGINT NOT NULL,  -- CHANGED from INTEGER
                 event VARCHAR(50) NOT NULL,
                 itemid INTEGER NOT NULL,
                 transactionid INTEGER
@@ -42,9 +39,9 @@ def create_schema():
             CREATE INDEX idx_events_event ON events(event);
             CREATE INDEX idx_events_timestamp ON events(timestamp);
         """)
-        print("✅ Events table created")
+        print("[OK] Events table created")
         
-        # 2. Item properties table
+        # Item properties table - ONE ROW PER ITEM
         print("Creating item_properties table...")
         cursor.execute("""
             DROP TABLE IF EXISTS item_properties CASCADE;
@@ -52,17 +49,17 @@ def create_schema():
             CREATE TABLE item_properties (
                 itemid INTEGER PRIMARY KEY,
                 categoryid INTEGER,
-                has_metadata BOOLEAN DEFAULT FALSE,
+                timestamp BIGINT,
                 property_count INTEGER DEFAULT 0,
-                properties JSONB
+                has_metadata BOOLEAN DEFAULT FALSE
             );
             
             CREATE INDEX idx_item_categoryid ON item_properties(categoryid);
             CREATE INDEX idx_item_has_metadata ON item_properties(has_metadata);
         """)
-        print("✅ Item properties table created")
+        print("[OK] Item properties table created")
         
-        # 3. Category tree table
+        # 3. Categories
         print("Creating categories table...")
         cursor.execute("""
             DROP TABLE IF EXISTS categories CASCADE;
@@ -71,21 +68,22 @@ def create_schema():
                 categoryid INTEGER PRIMARY KEY,
                 parentid INTEGER,
                 level INTEGER,
-                root_category INTEGER
+                root_category INTEGER,
+                is_orphan BOOLEAN DEFAULT FALSE  -- ADDED from your cleaning
             );
             
             CREATE INDEX idx_cat_parentid ON categories(parentid);
             CREATE INDEX idx_cat_root ON categories(root_category);
         """)
-        print("✅ Categories table created")
+        print("[OK] Categories table created")
         
-        # 4. User features table
+        # 4. User features - FIXED: visitorid is now BIGINT
         print("Creating user_features table...")
         cursor.execute("""
             DROP TABLE IF EXISTS user_features CASCADE;
             
             CREATE TABLE user_features (
-                visitorid INTEGER PRIMARY KEY,
+                visitorid BIGINT PRIMARY KEY,  -- CHANGED from INTEGER
                 total_events INTEGER DEFAULT 0,
                 total_views INTEGER DEFAULT 0,
                 total_addtocarts INTEGER DEFAULT 0,
@@ -99,9 +97,9 @@ def create_schema():
             
             CREATE INDEX idx_user_segment ON user_features(user_segment);
         """)
-        print("✅ User features table created")
+        print("[OK] User features table created")
         
-        # 5. Item features table
+        # 5. Item features
         print("Creating item_features table...")
         cursor.execute("""
             DROP TABLE IF EXISTS item_features CASCADE;
@@ -121,7 +119,7 @@ def create_schema():
             CREATE INDEX idx_item_popularity ON item_features(popularity_score DESC);
             CREATE INDEX idx_item_trending ON item_features(trending_score DESC);
         """)
-        print("✅ Item features table created")
+        print("[OK] Item features table created")
         
         conn.commit()
         
@@ -133,7 +131,7 @@ def create_schema():
         """)
         
         tables = cursor.fetchall()
-        print("\n✅ All tables created successfully!")
+        print("\n[SUCCESS] All tables created!")
         print("\nTables in database:")
         for table in tables:
             print(f"  - {table[0]}")
@@ -144,7 +142,7 @@ def create_schema():
         return True
         
     except Exception as e:
-        print(f"❌ Error creating schema: {e}")
+        print(f"[ERROR] Creating schema: {e}")
         import traceback
         traceback.print_exc()
         return False
