@@ -27,27 +27,34 @@ class CollaborativeFilteringModel:
         self.item_ids = None
         
     def load_data(self):
-        """Load training data from database"""
-        print("[INFO] Loading training data...")
-        
+        """Load ONLY active buyers with sampling"""
         conn = psycopg2.connect(**DB_CONFIG)
         
         query = """
         SELECT 
-            visitorid,
-            itemid,
+            e.visitorid,
+            e.itemid,
             CASE 
-                WHEN event = 'transaction' THEN 5
-                WHEN event = 'addtocart' THEN 3
-                WHEN event = 'view' THEN 1
+                WHEN e.event = 'transaction' THEN 5
+                WHEN e.event = 'addtocart' THEN 3
+                WHEN e.event = 'view' THEN 1
             END as implicit_rating
-        FROM events_train
+        FROM events_train e
+        INNER JOIN user_features uf ON e.visitorid = uf.visitorid
+        WHERE uf.user_segment IN ('converter', 'power_user')
         """
         
         df = pd.read_sql(query, conn)
-        conn.close()
         
-        print(f"[OK] Loaded {len(df):,} interactions")
+        # Additional sampling if needed
+        n_users = df['visitorid'].nunique()
+        print(f"[INFO] Loaded {n_users:,} active users")
+        
+        if n_users > 30000:
+            print(f"[INFO] Sampling top 30,000 users...")
+            top_users = df.groupby('visitorid').size().nlargest(30000).index
+            df = df[df['visitorid'].isin(top_users)]
+        
         return df
     
     def build_user_item_matrix(self, interactions_df):
@@ -77,7 +84,7 @@ class CollaborativeFilteringModel:
     def train(self):
         """Train collaborative filtering model"""
         print("\n[INFO] Training item-based CF...")
-        print("[INFO] Computing item similarities (this takes ~2-3 minutes)...")
+        print("[INFO] Computing item similarities ...")
         
         # Item-based CF (faster and often better than user-based)
         self.item_similarity = cosine_similarity(self.user_item_matrix.T, dense_output=False)
@@ -130,9 +137,7 @@ class CollaborativeFilteringModel:
 
 
 def main():
-    print("\n" + "="*60)
     print("COLLABORATIVE FILTERING MODEL")
-    print("="*60 + "\n")
     
     # Initialize
     model = CollaborativeFilteringModel()
@@ -150,18 +155,14 @@ def main():
     model.save_model()
     
     # Test on sample users
-    print("\n" + "="*60)
     print("TESTING RECOMMENDATIONS")
-    print("="*60)
     
     sample_users = model.user_ids[:5]
     for user_id in sample_users:
         recs = model.recommend(user_id, n_recommendations=5)
         print(f"User {user_id}: {recs}")
     
-    print("\n" + "="*60)
     print("[SUCCESS] Model trained and saved!")
-    print("="*60 + "\n")
 
 if __name__ == "__main__":
     main()
