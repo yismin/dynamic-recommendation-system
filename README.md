@@ -1,1 +1,1 @@
-# dynamic-recommendation-system
+# Dynamic Recommendation System
