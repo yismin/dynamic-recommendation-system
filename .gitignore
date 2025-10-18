@@ -2,7 +2,9 @@
 data/raw/*
 data/processed/*
 data/analytics/*
-data/models/cf_model.pkl
+# Ignore model files
+data/models/
+*.pkl
 
 # ignore virtual environments
 venv/
