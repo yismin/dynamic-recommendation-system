@@ -4,6 +4,9 @@ import pickle
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+import warnings
+warnings.filterwarnings("ignore", message="pandas only supports SQLAlchemy")
+
 
 load_dotenv()
 
@@ -16,11 +19,7 @@ DB_CONFIG = {
 }
 
 class PopularityRecommender:
-    """
-    Smart popularity-based recommender
-    - Overall popular for new users
-    - Category-specific for users with history
-    """
+    """Smart popularity-based recommender"""
     
     def __init__(self):
         self.popular_items = None
@@ -46,27 +45,32 @@ class PopularityRecommender:
         
         print(f"[OK] Loaded {len(self.popular_items)} popular items")
         
-        # Popular by category
+        # Popular by category - FIXED: Load ALL at once instead of loop
         print("\n[2/2] Loading category-specific popular items...")
-        categories = pd.read_sql("""
-            SELECT DISTINCT categoryid 
-            FROM item_properties 
-            WHERE categoryid IS NOT NULL
-        """, conn)
         
-        for cat_id in categories['categoryid']:
-            cat_items = pd.read_sql(f"""
-                SELECT ip.itemid
+        # Get top 30 items per category in one query
+        category_items = pd.read_sql("""
+            WITH ranked_items AS (
+                SELECT 
+                    ip.categoryid,
+                    ip.itemid,
+                    if.popularity_score,
+                    ROW_NUMBER() OVER (PARTITION BY ip.categoryid ORDER BY if.popularity_score DESC) as rn
                 FROM item_properties ip
                 JOIN item_features if ON ip.itemid = if.itemid
-                WHERE ip.categoryid = {cat_id}
+                WHERE ip.categoryid IS NOT NULL
                   AND if.total_transactions > 0
-                ORDER BY if.popularity_score DESC
-                LIMIT 30
-            """, conn)
-            
-            if len(cat_items) > 0:
-                self.category_popular[int(cat_id)] = cat_items['itemid'].tolist()
+            )
+            SELECT categoryid, itemid
+            FROM ranked_items
+            WHERE rn <= 30
+            ORDER BY categoryid, rn
+        """, conn)
+        
+        # Group by category
+        for cat_id in category_items['categoryid'].unique():
+            cat_items = category_items[category_items['categoryid'] == cat_id]['itemid'].tolist()
+            self.category_popular[int(cat_id)] = cat_items
         
         print(f"[OK] Loaded popular items for {len(self.category_popular)} categories")
         
@@ -82,6 +86,9 @@ class PopularityRecommender:
         if user_id is None:
             return self.popular_items[:n]
         
+        # Convert numpy int64 to Python int
+        user_id = int(user_id)
+        
         # Get user's favorite category
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
@@ -96,10 +103,8 @@ class PopularityRecommender:
         conn.close()
         
         if result and result[0] is not None and result[0] in self.category_popular:
-            # Category-specific
             return self.category_popular[result[0]][:n]
         
-        # Fallback: overall popular
         return self.popular_items[:n]
     
     def save_model(self, filepath="data/models/popularity_model.pkl"):
