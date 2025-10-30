@@ -1,0 +1,17 @@
+{
+  "Popularity": {
+    "hit_rate": 0.02764602249627321,
+    "precision": 0.002818810136874915,
+    "coverage": 1.0
+  },
+  "Trending": {
+    "hit_rate": 0.03794552107331617,
+    "precision": 0.00406559154356959,
+    "coverage": 1.0
+  },
+  "Category_CF": {
+    "hit_rate": 0.11642411642411643,
+    "precision": 0.021015246015246018,
+    "coverage": 0.06518498441523242
+  }
+}
